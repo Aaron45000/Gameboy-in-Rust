@@ -52,11 +52,11 @@ struct Emulator
 
 impl Emulator
 {
-    fn new(path: &str, rom_banks: usize, ram_banks: usize) -> Self
+    fn new(romdata: Vec<u8>) -> Self
     {
         return Emulator
         {
-            cpu: cpu::Cpu::new(&path,rom_banks, ram_banks),
+            cpu: cpu::Cpu::new(romdata),
             joypad: Joypad::new(),
             timer: timer::Timer::new(),
             ppu: ppu::Ppu::new()
@@ -130,10 +130,8 @@ fn main()
     let romdata = fs::read(path )
         .expect("No se pudo abrir el archivo");
 
-    let ram_banks = cartrige::fetch_ram_banks(&romdata);
-    let rom_banks = cartrige::fetch_rom_banks(&romdata);
-
-    let mut emulator = Emulator::new(path,rom_banks,ram_banks);
+    // El tipo de MBC y el numero de bancos los deduce la fabrica del cartucho
+    let mut emulator = Emulator::new(romdata);
 
     
     emulator.cpu.raw_memory.address_bus[0xFF00] |= 0b11001111;
