@@ -1,16 +1,28 @@
 use std::fs;
-use pixels::{Pixels, SurfaceTexture};
+use std::num::NonZeroU32;
+use std::rc::Rc;
+use std::time::{Duration, Instant};
+
+use softbuffer::{Context, Surface};
+use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
+use winit::event::{ElementState, KeyEvent, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, EventLoop, OwnedDisplayHandle};
 use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::window::WindowBuilder;
+use winit::window::{Window, WindowId};
+
 mod memory;
 mod timer;
 mod cpu;
 mod ppu;
 mod cartrige;
 
+const SCREEN_WIDTH: u32 = 160;
+const SCREEN_HEIGHT: u32 = 144;
+
+// ---------------------------------------------------------------------------
+// Joypad
+// ---------------------------------------------------------------------------
 
 struct Joypad 
 {
@@ -41,6 +53,10 @@ impl Joypad
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Emulator
+// ---------------------------------------------------------------------------
 
 struct Emulator
 {
@@ -121,172 +137,154 @@ impl Emulator
     }
 }
 
-
-
-
-fn main() 
+enum AppState
 {
-    let path: &str = "/home/aaron4500/Descargas/Pokemon - Edicion Roja (Spain) (SGB Enhanced).gb";
-    let romdata = fs::read(path )
+    Uninitialized,
+    Suspended { window: Rc<Window> },
+    Running { surface: Surface<OwnedDisplayHandle, Rc<Window>> },
+}
+
+struct App
+{
+    context: Context<OwnedDisplayHandle>,
+    state: AppState,
+    emulator: Emulator,
+    frame_duration: Duration,
+    next_frame: Instant,
+}
+
+impl App
+{
+    fn new(context: Context<OwnedDisplayHandle>, emulator: Emulator) -> Self
+    {
+        return App
+        {
+            context,
+            state: AppState::Uninitialized,
+            emulator,
+            frame_duration: Duration::from_secs_f64(1.0 / 59.7275),
+            next_frame: Instant::now(),
+        };
+    }
+}
+
+impl ApplicationHandler for App
+{
+    fn resumed(&mut self, event_loop: &ActiveEventLoop)
+    {
+        let window_attributes = Window::default_attributes()
+            .with_title("Game Boy Emulator")
+            .with_inner_size(LogicalSize::new(800, 720)); // 160x144 a escala x5
+
+        let window = Rc::new(event_loop.create_window(window_attributes).unwrap());
+
+        let mut surface = Surface::new(&self.context, window.clone()).unwrap();
+        let size = window.inner_size();
+        if let (Some(width), Some(height)) =
+            (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
+        {
+            surface.resize(width, height).unwrap();
+        }
+
+        self.state = AppState::Running { surface };
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: WindowEvent,
+    )
+    {
+        let AppState::Running { surface } = &mut self.state else { return; };
+
+        if surface.window().id() != window_id
+        {
+            return;
+        }
+
+        match event
+        {
+            WindowEvent::CloseRequested => event_loop.exit(),
+
+            WindowEvent::Resized(size) =>
+            {
+                if let (Some(width), Some(height)) =
+                    (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
+                {
+                    surface.resize(width, height).unwrap();
+                }
+            }
+
+            WindowEvent::KeyboardInput
+            {
+                event: KeyEvent { physical_key, state, .. },
+                ..
+            } =>
+            {
+                let pressed = state == ElementState::Pressed;
+
+                match physical_key
+                {
+                    PhysicalKey::Code(KeyCode::KeyW) => {},
+                    PhysicalKey::Code(KeyCode::KeyA) => {},
+                    PhysicalKey::Code(KeyCode::KeyS) => {},
+                    PhysicalKey::Code(KeyCode::KeyD) => {},
+                    PhysicalKey::Code(KeyCode::KeyK) => {},
+                    PhysicalKey::Code(KeyCode::KeyL) => {},
+                    PhysicalKey::Code(KeyCode::Enter) => {},
+                    PhysicalKey::Code(KeyCode::Backspace) => {},
+                    _ => {}
+                }
+                let _ = pressed;
+            }
+
+            WindowEvent::RedrawRequested =>
+            {
+                // TODO: renderizar el framebuffer de la PPU (160x144) en el
+                
+            }
+
+            _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop)
+    {
+        // TODO: bucle de frame. Algo así (adaptando al timing de 59.7275 Hz):
+        //
+        //   let now = Instant::now();
+        //   if now >= self.next_frame {
+        //       let mut ticks_frame = 17556u16;
+        //       while ticks_frame > 0 {
+        //           let mut ticks = self.emulator.cpu.handle_interrupts() as u16;
+        //           if ticks == 0 && !self.emulator.cpu.halted {
+        //               ticks = self.emulator.cpu.step() as u16;
+        //           }
+        //           self.emulator.ppu.step(ticks, &mut self.emulator.cpu.raw_memory);
+        //           self.emulator.timer.step(ticks as u8, &mut self.emulator.cpu.raw_memory);
+        //           self.emulator.read_joypad();
+        //           ticks_frame -= ticks;
+        //       }
+        //       self.next_frame = now + self.frame_duration;
+        //       // pedir redraw de la ventana
+        //   }
+    }
+}
+
+fn main()
+{
+    let path: &str = "path";
+    let romdata = fs::read(path)
         .expect("No se pudo abrir el archivo");
 
     // El tipo de MBC y el numero de bancos los deduce la fabrica del cartucho
     let mut emulator = Emulator::new(romdata);
-
-    
     emulator.cpu.raw_memory.address_bus[0xFF00] |= 0b11001111;
 
     let event_loop = EventLoop::new().unwrap();
-    let window = WindowBuilder::new()
-        .with_title("prueba inputs")
-        .with_inner_size(LogicalSize::new(800, 600))
-        .build(&event_loop)
-        .unwrap();
+    let context = Context::new(event_loop.owned_display_handle()).unwrap();
 
-    let window_size = window.inner_size();
-    let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
-    let mut pixels = Pixels::new(160, 144, surface_texture).unwrap();
-
-    // Pintar fondo azul inicial
-    for pixel in pixels.frame_mut().chunks_exact_mut(4) 
-    {
-        pixel[0] = 0x00; // R
-        pixel[1] = 0x00; // G
-        pixel[2] = 0xFF; // B
-        pixel[3] = 0xFF; // A
-    }
-    pixels.render().unwrap();
-
-    
-    let frame_duration = std::time::Duration::from_secs_f64(1.0 / 59.7275);
-    let mut next_frame = std::time::Instant::now() + frame_duration;
-
-    // --- Bucle principal ---
-    // Winit funciona con un sistema de eventos que rigen lo que pasa en la ventana, 
-    // y se ejecuta en un bucle infinito hasta que se cierra la ventana
-    event_loop.run(move |event, event_loop_target|
-    {
-        event_loop_target.set_control_flow(ControlFlow::WaitUntil(next_frame));
-
-        match event
-        {
-            // Evento de cuando se pide que se cierre la ventana
-            Event::WindowEvent { event: WindowEvent::CloseRequested, .. } =>
-            {
-                event_loop_target.exit();
-            }
-
-            // Evento de cuando se presiona o suelta una tecla del teclado
-            Event::WindowEvent 
-            { 
-                event: WindowEvent::KeyboardInput 
-                { 
-                    event: KeyEvent { physical_key, state, .. }, .. 
-                }, 
-                .. 
-            } =>
-            {
-                let presionado = state == ElementState::Pressed;
-
-                match physical_key
-                {
-                    PhysicalKey::Code(KeyCode::KeyW)      => emulator.joypad.up     = !presionado,
-                    PhysicalKey::Code(KeyCode::KeyA)      => emulator.joypad.left   = !presionado,
-                    PhysicalKey::Code(KeyCode::KeyS)      => emulator.joypad.down   = !presionado,
-                    PhysicalKey::Code(KeyCode::KeyD)      => emulator.joypad.right  = !presionado,
-                    PhysicalKey::Code(KeyCode::KeyK)      => emulator.joypad.a      = !presionado,
-                    PhysicalKey::Code(KeyCode::KeyL)      => emulator.joypad.b      = !presionado,
-                    PhysicalKey::Code(KeyCode::Enter)     => emulator.joypad.start  = !presionado,
-                    PhysicalKey::Code(KeyCode::Backspace) => emulator.joypad.select = !presionado,
-                    _ => (),
-                }
-            }
-
-            // Cuando ya no hay eventos pendientes: logica de frame
-            // es un bucle cada x tiempo, ideal para dibujar y actualizar la logica del emulador 
-            // frame por frame
-            Event::AboutToWait =>
-            {
-                let now = std::time::Instant::now();
-
-                if now >= next_frame
-                {
-                    
-                    let ant_joypad_register = emulator.cpu.raw_memory.address_bus[0xFF00];
-
-                    emulator.read_joypad();
-
-                    if ant_joypad_register != emulator.cpu.raw_memory.address_bus[0xFF00]
-                    {
-                        
-                        println!("joypad_register: {:08b}", emulator.cpu.raw_memory.address_bus[0xFF00]);
-                        
-                    }
-
-                    let mut ticks_frame = 17556 as u16;
-                    
-                    while ticks_frame > 0
-                    {
-                        
-                        let mut ticks_gastados = emulator.cpu.handle_interrupts() as u16; 
-
-                        if ticks_gastados == 0
-                        {
-                            if !emulator.cpu.halted
-                            {
-
-                                ticks_gastados = emulator.cpu.step() as u16;
-                            
-                            }
-                            
-                        }
-
-                        emulator.ppu.step(ticks_gastados, &mut emulator.cpu.raw_memory);
-                        emulator.timer.step(ticks_gastados as u8, &mut emulator.cpu.raw_memory);
-                        // emulator.apu.step(ticks_gastados);
-                        
-                        emulator.read_joypad();
-                        ticks_frame -= ticks_gastados as u16;
-
-                    }
-                     
-
-                    // Aqui ira la logica de CPU: emulator.cpu.step(), emulator.ppu.step(), etc.
-
-
-                    
-
-                    window.request_redraw();
-
-                    next_frame = now + frame_duration;
-                    event_loop_target.set_control_flow(ControlFlow::WaitUntil(next_frame));
-                }
-            }
-
-            // Renderizar con pixels cuando la ventana lo pida
-            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } =>
-            {
-                const PALETTE: [[u8; 4]; 4] = [
-                    [0xFF, 0xFF, 0xFF, 0xFF], // sombra 0: blanco
-                    [0xAA, 0xAA, 0xAA, 0xFF], // sombra 1: gris claro
-                    [0x55, 0x55, 0x55, 0xFF], // sombra 2: gris oscuro
-                    [0x00, 0x00, 0x00, 0xFF], // sombra 3: negro
-                ];
-
-                let framebuffer = emulator.ppu.framebuffer();
-
-                for (pixel, &shade) in pixels.frame_mut().chunks_exact_mut(4).zip(framebuffer.iter())
-                {
-                    pixel.copy_from_slice(&PALETTE[shade as usize]);
-                }
-
-                if pixels.render().is_err()
-                {
-                    event_loop_target.exit();
-                }
-            }
-
-            _ => (),
-        }
-    }).unwrap();
+    let mut app = App::new(context, emulator);
+    event_loop.run_app(&mut app).unwrap();
 }

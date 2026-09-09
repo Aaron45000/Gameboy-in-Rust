@@ -4,32 +4,70 @@ enum PpuMode { HBlank = 0, VBlank = 1, OAMSearch = 2, PixelTransfer = 3 }
 
 pub struct Ppu {
     ticks: u32,
+    pixels: [u8; 160*144],
+    bg_color_id: [u8; 160],
+    window_line: u8,
 }
 
 impl Ppu {
-    pub fn new() -> Self {
-        return Ppu { ticks: 0 }
+    pub fn new() -> Self 
+    {
+        return Ppu { ticks: 0, pixels: [0; 160*144], bg_color_id: [0; 160], window_line: 0 }
     }
 
-    pub fn step(&mut self, m_cycles: u16, memory: &mut RawMemory) {
+
+    fn render_background(&mut self, ly: u8, memory: &RawMemory) 
+    {
+        
+
+
+    }
+    
+    fn render_window(&mut self, ly: u8, memory: &RawMemory) 
+    {
+        
+
+
+    }
+
+    fn render_sprites(&mut self, ly: u8, memory: &RawMemory) 
+    {
+
+
+
+    }
+
+    pub fn step(&mut self, m_cycles: u16, memory: &mut RawMemory) 
+    {
         self.ticks += m_cycles as u32;
 
         let mut ly = memory.address_bus[0xFF44];
         let mut stat = memory.address_bus[0xFF41];
         let old_mode = stat & 0x03; 
-        
+        let lcdc = memory.address_bus[0xFF40];
         let mut current_mode = old_mode;
 
+        if (lcdc & 1<<7) == 0 {
+
+            memory.address_bus[0xFF44] = 0;
+            self.pixels = [0; 160*144];
+            self.ticks = 0;
+            self.window_line = 0;
+            memory.ppu_mode = PpuMode::HBlank as u8;
+            memory.address_bus[0xFF41] = (stat & !(0b11 as u8)) | PpuMode::HBlank as u8;
+            return;
+        }
         
         if self.ticks >= 114 {
             self.ticks -= 114;
             ly = ly.wrapping_add(1);
 
             if ly > 153 {
-                ly = 0; 
+                ly = 0;
+                self.window_line = 0;
             }
-            
-            
+
+
             if ly == 144 {
                 memory.address_bus[0xFF0F] |= 0x01; 
             }
@@ -63,9 +101,11 @@ impl Ppu {
         if current_mode != old_mode 
         {
             
-            if current_mode == PpuMode::HBlank as u8 
+            if current_mode == PpuMode::HBlank as u8
             {
-                // renderiza linea
+                self.render_background(ly, memory);
+                self.render_window(ly, memory);
+                self.render_sprites(ly, memory);
             }
             
         }

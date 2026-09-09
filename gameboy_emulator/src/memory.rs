@@ -5,12 +5,11 @@ pub struct RawMemory
     pub address_bus: [u8; 0x10000],
     pub div_reset: bool,
     pub ppu_mode: u8,
-    pub cartrige: Box<dyn cartrige::Mbc>
+    pub cartrige: Box<dyn cartrige::Mbc> // es una caja con una implementacion de Mbc
 }
 
 impl RawMemory
 {
-    /// Recibe la ROM ya leida; el tipo de MBC lo decide la fabrica del cartucho.
     pub fn new(romdata: Vec<u8>) -> Self
     {
         return RawMemory
@@ -26,7 +25,6 @@ impl RawMemory
     {
         match address
         {
-            // Todo el area del cartucho la resuelve el MBC
             0x0000..=0x7FFF => return self.cartrige.read_rom(address),
             0xA000..=0xBFFF => return self.cartrige.read_ram(address),
 
@@ -47,10 +45,9 @@ impl RawMemory
     {
         match address 
         {
-            // Escribir aqui no modifica la ROM: configura los registros del MBC
+
             0x0000..=0x7FFF => self.cartrige.write_rom(address, value),
             0xA000..=0xBFFF => self.cartrige.write_ram(address, value),
-
             0x8000..=0x9FFF if self.ppu_mode == 3 => {},
             0xFE00..=0xFE9F if self.ppu_mode == 2 || self.ppu_mode == 3 => {},
 
@@ -66,8 +63,7 @@ impl RawMemory
                 
                 self.address_bus[0xFF46] = value;
 
-                // El origen puede estar en la ROM o en la RAM del cartucho, asi que
-                // hay que pasar por el mapper en vez de copiar dentro del bus.
+                
                 let copy_address = (value as u16) << 8;
 
                 for i in 0..160u16
