@@ -104,7 +104,7 @@ impl Cpu
 
     pub(super) fn halted(&mut self) -> u8
     {
-        let pending = self.raw_memory.read_byte((0xFF0F) as u16) & self.raw_memory.read_byte((0xFFFF) as u16);
+        let pending = self.memory.read_byte((0xFF0F) as u16) & self.memory.read_byte((0xFFFF) as u16);
         if !self.ime && pending != 0 {
             self.halt_bug = true;
         } else {

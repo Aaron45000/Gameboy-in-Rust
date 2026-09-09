@@ -37,7 +37,7 @@ fn cpu() -> Cpu
     rom[0x149] = 0x00; // sin RAM
 
     let mut c = Cpu::new(rom);
-    c.raw_memory.ppu_mode = 0; // que VRAM y OAM sean accesibles
+    c.memory.ppu_mode = 0; // que VRAM y OAM sean accesibles
     c.stack_pointer = STACK;
     return c;
 }
@@ -48,7 +48,7 @@ fn exec(c: &mut Cpu, program: &[u8]) -> u8
 {
     for (i, byte) in program.iter().enumerate()
     {
-        c.raw_memory.write_byte((PROG + i) as u16, *byte);
+        c.memory.write_byte((PROG + i) as u16, *byte);
     }
     c.program_counter = PROG;
     return c.step();
@@ -78,7 +78,7 @@ fn assert_flags(c: &Cpu, z: bool, n: bool, h: bool, carry: bool, ctx: &str)
 fn set_hl_mem(c: &mut Cpu, val: u8)
 {
     c.set_r16(R16::HL as u8, DATA);
-    c.raw_memory.write_byte(DATA, val);
+    c.memory.write_byte(DATA, val);
 }
 
 
@@ -122,7 +122,7 @@ fn ld_r16mem_a()
         c.work_registers[R8::A as usize] = 0x42;
         c.set_r16(pair, DATA);
         assert_eq!(exec(&mut c, &[op]), 2, "LD {}, A", nombre);
-        assert_eq!(c.raw_memory.read_byte(DATA), 0x42, "LD {}, A", nombre);
+        assert_eq!(c.memory.read_byte(DATA), 0x42, "LD {}, A", nombre);
         assert_eq!(c.program_counter, PROG + 1);
     }
 
@@ -131,7 +131,7 @@ fn ld_r16mem_a()
     c.work_registers[R8::A as usize] = 0x11;
     c.set_r16(R16::HL as u8, DATA);
     exec(&mut c, &[0x22]);
-    assert_eq!(c.raw_memory.read_byte(DATA), 0x11);
+    assert_eq!(c.memory.read_byte(DATA), 0x11);
     assert_eq!(c.get_r16(R16::HL as u8), DATA + 1, "[HL+] debe post-incrementar HL");
 
     // [HL-]
@@ -139,7 +139,7 @@ fn ld_r16mem_a()
     c.work_registers[R8::A as usize] = 0x22;
     c.set_r16(R16::HL as u8, DATA);
     exec(&mut c, &[0x32]);
-    assert_eq!(c.raw_memory.read_byte(DATA), 0x22);
+    assert_eq!(c.memory.read_byte(DATA), 0x22);
     assert_eq!(c.get_r16(R16::HL as u8), DATA - 1, "[HL-] debe post-decrementar HL");
 }
 
@@ -150,7 +150,7 @@ fn ld_a_r16mem()
     {
         let mut c = cpu();
         c.set_r16(pair, DATA);
-        c.raw_memory.write_byte(DATA, 0x99);
+        c.memory.write_byte(DATA, 0x99);
         assert_eq!(exec(&mut c, &[op]), 2, "LD A, {}", nombre);
         assert_eq!(c.work_registers[R8::A as usize], 0x99, "LD A, {}", nombre);
     }
@@ -291,7 +291,7 @@ fn inc_hl_mem()
     let mut c = cpu();
     set_hl_mem(&mut c, 0x0F);
     assert_eq!(exec(&mut c, &[0x34]), 3, "INC [HL]");
-    assert_eq!(c.raw_memory.read_byte(DATA), 0x10);
+    assert_eq!(c.memory.read_byte(DATA), 0x10);
     assert_flags(&c, false, false, true, false, "INC [HL]");
 }
 
@@ -324,7 +324,7 @@ fn dec_hl_mem()
     let mut c = cpu();
     set_hl_mem(&mut c, 0x00);
     assert_eq!(exec(&mut c, &[0x35]), 3, "DEC [HL]");
-    assert_eq!(c.raw_memory.read_byte(DATA), 0xFF);
+    assert_eq!(c.memory.read_byte(DATA), 0xFF);
     assert_flags(&c, false, true, true, false, "DEC [HL] envolviendo");
 }
 
@@ -348,7 +348,7 @@ fn ld_hl_mem_imm8()
     let mut c = cpu();
     c.set_r16(R16::HL as u8, DATA);
     assert_eq!(exec(&mut c, &[0x36, 0x7E]), 3, "LD [HL], imm8");
-    assert_eq!(c.raw_memory.read_byte(DATA), 0x7E);
+    assert_eq!(c.memory.read_byte(DATA), 0x7E);
     assert_eq!(c.program_counter, PROG + 2, "LD [HL], imm8 debe avanzar PC 2 bytes");
 }
 
@@ -473,8 +473,8 @@ fn ld_imm16_sp()
     let mut c = cpu();
     c.stack_pointer = 0xBEEF;
     assert_eq!(exec(&mut c, &[0x08, (DATA & 0xFF) as u8, (DATA >> 8) as u8]), 5);
-    assert_eq!(c.raw_memory.read_byte(DATA), 0xEF, "byte bajo de SP");
-    assert_eq!(c.raw_memory.read_byte(DATA + 1), 0xBE, "byte alto de SP");
+    assert_eq!(c.memory.read_byte(DATA), 0xEF, "byte bajo de SP");
+    assert_eq!(c.memory.read_byte(DATA + 1), 0xBE, "byte alto de SP");
     assert_eq!(c.program_counter, PROG + 3);
 }
 
@@ -561,7 +561,7 @@ fn ld_hl_mem_r8()
 
         let op = 0b01_110_000 | src;
         assert_eq!(exec(&mut c, &[op]), 2, "LD [HL], r8 ({:02X})", op);
-        assert_eq!(c.raw_memory.read_byte(ADDR), 0xC5, "LD [HL], r8 ({:02X})", op);
+        assert_eq!(c.memory.read_byte(ADDR), 0xC5, "LD [HL], r8 ({:02X})", op);
         assert_eq!(c.program_counter, PROG + 1);
     }
 }
@@ -591,8 +591,8 @@ fn halt()
     // IME=0 con interrupcion pendiente: se dispara el halt bug
     let mut c = cpu();
     c.ime = false;
-    c.raw_memory.write_byte(0xFF0F, 0x01);
-    c.raw_memory.write_byte(0xFFFF, 0x01);
+    c.memory.write_byte(0xFF0F, 0x01);
+    c.memory.write_byte(0xFFFF, 0x01);
     exec(&mut c, &[0x76]);
     assert!(c.halt_bug, "HALT con IME=0 e interrupcion pendiente activa el halt bug");
     assert!(!c.halted);
@@ -985,8 +985,8 @@ fn push_r16()
         c.set_r16(pair, 0x1234);
         assert_eq!(exec(&mut c, &[op]), 4, "PUSH {}", nombre);
         assert_eq!(c.stack_pointer, STACK - 2, "PUSH {}", nombre);
-        assert_eq!(c.raw_memory.read_byte(STACK - 1), 0x12, "byte alto de {}", nombre);
-        assert_eq!(c.raw_memory.read_byte(STACK - 2), 0x34, "byte bajo de {}", nombre);
+        assert_eq!(c.memory.read_byte(STACK - 1), 0x12, "byte alto de {}", nombre);
+        assert_eq!(c.memory.read_byte(STACK - 2), 0x34, "byte bajo de {}", nombre);
     }
 
     // PUSH AF
@@ -994,8 +994,8 @@ fn push_r16()
     c.work_registers[R8::A as usize] = 0xAB;
     c.work_registers[R8::F as usize] = 0xC0;
     exec(&mut c, &[0xF5]);
-    assert_eq!(c.raw_memory.read_byte(STACK - 1), 0xAB, "PUSH AF: byte alto es A");
-    assert_eq!(c.raw_memory.read_byte(STACK - 2), 0xC0, "PUSH AF: byte bajo es F");
+    assert_eq!(c.memory.read_byte(STACK - 1), 0xAB, "PUSH AF: byte alto es A");
+    assert_eq!(c.memory.read_byte(STACK - 2), 0xC0, "PUSH AF: byte bajo es F");
 }
 
 #[test]
@@ -1007,8 +1007,8 @@ fn pop_r16()
     {
         let mut c = cpu();
         c.stack_pointer = STACK;
-        c.raw_memory.write_byte(STACK, 0x34);
-        c.raw_memory.write_byte(STACK + 1, 0x12);
+        c.memory.write_byte(STACK, 0x34);
+        c.memory.write_byte(STACK + 1, 0x12);
         assert_eq!(exec(&mut c, &[op]), 3, "POP {}", nombre);
         assert_eq!(c.get_r16(pair), 0x1234, "POP {}", nombre);
         assert_eq!(c.stack_pointer, STACK + 2, "POP {}", nombre);
@@ -1017,8 +1017,8 @@ fn pop_r16()
     // POP AF: el nibble bajo de F siempre queda a cero
     let mut c = cpu();
     c.stack_pointer = STACK;
-    c.raw_memory.write_byte(STACK, 0x3F);
-    c.raw_memory.write_byte(STACK + 1, 0xAB);
+    c.memory.write_byte(STACK, 0x3F);
+    c.memory.write_byte(STACK + 1, 0xAB);
     exec(&mut c, &[0xF1]);
     assert_eq!(c.work_registers[R8::A as usize], 0xAB, "POP AF");
     assert_eq!(f(&c), 0x30, "POP AF debe descartar el nibble bajo de F");
@@ -1045,8 +1045,8 @@ fn call_imm16()
     assert_eq!(c.stack_pointer, STACK - 2);
 
     // La direccion de retorno es la instruccion siguiente (PROG + 3)
-    let ret = (c.raw_memory.read_byte(STACK - 1) as usize) << 8
-            | (c.raw_memory.read_byte(STACK - 2) as usize);
+    let ret = (c.memory.read_byte(STACK - 1) as usize) << 8
+            | (c.memory.read_byte(STACK - 2) as usize);
     assert_eq!(ret, PROG + 3, "CALL debe apilar la direccion de retorno");
 }
 
@@ -1078,8 +1078,8 @@ fn ret()
 {
     let mut c = cpu();
     c.stack_pointer = STACK;
-    c.raw_memory.write_byte(STACK, 0x00);
-    c.raw_memory.write_byte(STACK + 1, 0xC6);
+    c.memory.write_byte(STACK, 0x00);
+    c.memory.write_byte(STACK + 1, 0xC6);
     assert_eq!(exec(&mut c, &[0xC9]), 4, "RET");
     assert_eq!(c.program_counter, 0xC600);
     assert_eq!(c.stack_pointer, STACK + 2);
@@ -1091,8 +1091,8 @@ fn reti()
     let mut c = cpu();
     c.ime = false;
     c.stack_pointer = STACK;
-    c.raw_memory.write_byte(STACK, 0x00);
-    c.raw_memory.write_byte(STACK + 1, 0xC6);
+    c.memory.write_byte(STACK, 0x00);
+    c.memory.write_byte(STACK + 1, 0xC6);
     exec(&mut c, &[0xD9]);
     assert_eq!(c.program_counter, 0xC600);
     assert!(c.ime, "RETI debe reactivar las interrupciones");
@@ -1108,8 +1108,8 @@ fn ret_cond()
         // Tomado
         let mut c = cpu();
         c.stack_pointer = STACK;
-        c.raw_memory.write_byte(STACK, 0x00);
-        c.raw_memory.write_byte(STACK + 1, 0xC6);
+        c.memory.write_byte(STACK, 0x00);
+        c.memory.write_byte(STACK + 1, 0xC6);
         c.work_registers[R8::F as usize] = if retorna_con_flag { flag } else { 0 };
         assert_eq!(exec(&mut c, &[op]), 5, "RET cond {:02X} tomado", op);
         assert_eq!(c.program_counter, 0xC600);
@@ -1128,7 +1128,7 @@ fn call_y_ret_juntos()
 {
     let mut c = cpu();
     exec(&mut c, &[0xCD, 0x00, 0xC6]); // CALL 0xC600
-    c.raw_memory.write_byte(0xC600, 0xC9); // RET
+    c.memory.write_byte(0xC600, 0xC9); // RET
     c.program_counter = 0xC600;
     c.step();
     assert_eq!(c.program_counter, PROG + 3, "RET debe volver justo detras del CALL");
@@ -1181,8 +1181,8 @@ fn rst_todos_los_vectores()
         assert_eq!(exec(&mut c, &[op]), 4, "RST {:02X}", n * 8);
         assert_eq!(c.program_counter, (n as usize) * 8, "RST {:02X}", n * 8);
 
-        let ret = (c.raw_memory.read_byte(STACK - 1) as usize) << 8
-                | (c.raw_memory.read_byte(STACK - 2) as usize);
+        let ret = (c.memory.read_byte(STACK - 1) as usize) << 8
+                | (c.memory.read_byte(STACK - 2) as usize);
         assert_eq!(ret, PROG + 1, "RST debe apilar la direccion siguiente");
     }
 }
@@ -1194,12 +1194,12 @@ fn ldh_imm8()
     let mut c = cpu();
     c.work_registers[R8::A as usize] = 0x5A;
     assert_eq!(exec(&mut c, &[0xE0, 0x80]), 3, "LD [FF00+n], A");
-    assert_eq!(c.raw_memory.read_byte(0xFF80), 0x5A);
+    assert_eq!(c.memory.read_byte(0xFF80), 0x5A);
     assert_eq!(c.program_counter, PROG + 2);
 
     // LD A, [FF00+n]
     let mut c = cpu();
-    c.raw_memory.write_byte(0xFF80, 0xA5);
+    c.memory.write_byte(0xFF80, 0xA5);
     assert_eq!(exec(&mut c, &[0xF0, 0x80]), 3, "LD A, [FF00+n]");
     assert_eq!(c.work_registers[R8::A as usize], 0xA5);
 }
@@ -1212,13 +1212,13 @@ fn ldh_c()
     c.work_registers[R8::A as usize] = 0x5A;
     c.work_registers[RC as usize] = 0x81;
     assert_eq!(exec(&mut c, &[0xE2]), 2, "LD [FF00+C], A");
-    assert_eq!(c.raw_memory.read_byte(0xFF81), 0x5A);
+    assert_eq!(c.memory.read_byte(0xFF81), 0x5A);
     assert_eq!(c.program_counter, PROG + 1);
 
     // LD A, [FF00+C]
     let mut c = cpu();
     c.work_registers[RC as usize] = 0x81;
-    c.raw_memory.write_byte(0xFF81, 0xA5);
+    c.memory.write_byte(0xFF81, 0xA5);
     assert_eq!(exec(&mut c, &[0xF2]), 2, "LD A, [FF00+C]");
     assert_eq!(c.work_registers[R8::A as usize], 0xA5);
 }
@@ -1229,11 +1229,11 @@ fn ld_imm16_a_y_vuelta()
     let mut c = cpu();
     c.work_registers[R8::A as usize] = 0x7C;
     assert_eq!(exec(&mut c, &[0xEA, (DATA & 0xFF) as u8, (DATA >> 8) as u8]), 4, "LD [imm16], A");
-    assert_eq!(c.raw_memory.read_byte(DATA), 0x7C);
+    assert_eq!(c.memory.read_byte(DATA), 0x7C);
     assert_eq!(c.program_counter, PROG + 3);
 
     let mut c = cpu();
-    c.raw_memory.write_byte(DATA, 0xC7);
+    c.memory.write_byte(DATA, 0xC7);
     assert_eq!(exec(&mut c, &[0xFA, (DATA & 0xFF) as u8, (DATA >> 8) as u8]), 4, "LD A, [imm16]");
     assert_eq!(c.work_registers[R8::A as usize], 0xC7);
 }
@@ -1331,7 +1331,7 @@ fn cb_rlc()
     let mut c = cpu();
     set_hl_mem(&mut c, 0b1000_0001);
     assert_eq!(exec(&mut c, &[0xCB, 0x06]), 4, "RLC [HL]");
-    assert_eq!(c.raw_memory.read_byte(DATA), 0b0000_0011);
+    assert_eq!(c.memory.read_byte(DATA), 0b0000_0011);
 }
 
 #[test]
@@ -1349,7 +1349,7 @@ fn cb_rrc()
     let mut c = cpu();
     set_hl_mem(&mut c, 0b0000_0011);
     assert_eq!(exec(&mut c, &[0xCB, 0x0E]), 4, "RRC [HL]");
-    assert_eq!(c.raw_memory.read_byte(DATA), 0b1000_0001);
+    assert_eq!(c.memory.read_byte(DATA), 0b1000_0001);
 }
 
 #[test]
@@ -1451,7 +1451,7 @@ fn cb_swap()
     let mut c = cpu();
     set_hl_mem(&mut c, 0xAB);
     assert_eq!(exec(&mut c, &[0xCB, 0x36]), 4, "SWAP [HL]");
-    assert_eq!(c.raw_memory.read_byte(DATA), 0xBA);
+    assert_eq!(c.memory.read_byte(DATA), 0xBA);
 }
 
 #[test]
@@ -1525,7 +1525,7 @@ fn cb_res_todos_los_bits_y_registros()
         let mut c = cpu();
         set_hl_mem(&mut c, 0xFF);
         assert_eq!(exec(&mut c, &[0xCB, 0b10_000_110 | (bit << 3)]), 4, "RES {}, [HL]", bit);
-        assert_eq!(c.raw_memory.read_byte(DATA), !(1u8 << bit));
+        assert_eq!(c.memory.read_byte(DATA), !(1u8 << bit));
     }
 }
 
@@ -1550,7 +1550,7 @@ fn cb_set_todos_los_bits_y_registros()
         let mut c = cpu();
         set_hl_mem(&mut c, 0x00);
         assert_eq!(exec(&mut c, &[0xCB, 0b11_000_110 | (bit << 3)]), 4, "SET {}, [HL]", bit);
-        assert_eq!(c.raw_memory.read_byte(DATA), 1u8 << bit);
+        assert_eq!(c.memory.read_byte(DATA), 1u8 << bit);
     }
 }
 
@@ -1570,17 +1570,17 @@ fn handle_interrupts_salta_al_vector()
         let mut c = cpu();
         c.ime = true;
         c.program_counter = 0xC600;
-        c.raw_memory.write_byte(0xFF0F, 1 << bit);
-        c.raw_memory.write_byte(0xFFFF, 1 << bit);
+        c.memory.write_byte(0xFF0F, 1 << bit);
+        c.memory.write_byte(0xFFFF, 1 << bit);
 
         assert_eq!(c.handle_interrupts(), 20, "interrupcion {}", bit);
         assert_eq!(c.program_counter, vector, "interrupcion {}", bit);
         assert!(!c.ime, "atender una interrupcion desactiva IME");
-        assert_eq!(c.raw_memory.read_byte(0xFF0F) & (1 << bit), 0,
+        assert_eq!(c.memory.read_byte(0xFF0F) & (1 << bit), 0,
             "el bit atendido debe limpiarse en IF");
 
-        let ret = (c.raw_memory.read_byte(STACK - 1) as usize) << 8
-                | (c.raw_memory.read_byte(STACK - 2) as usize);
+        let ret = (c.memory.read_byte(STACK - 1) as usize) << 8
+                | (c.memory.read_byte(STACK - 2) as usize);
         assert_eq!(ret, 0xC600, "debe apilarse el PC de retorno");
     }
 }
@@ -1591,16 +1591,16 @@ fn handle_interrupts_respeta_ime_y_el_registro_ie()
     // IME apagado: no se atiende
     let mut c = cpu();
     c.ime = false;
-    c.raw_memory.write_byte(0xFF0F, 0x01);
-    c.raw_memory.write_byte(0xFFFF, 0x01);
+    c.memory.write_byte(0xFF0F, 0x01);
+    c.memory.write_byte(0xFFFF, 0x01);
     assert_eq!(c.handle_interrupts(), 0);
     assert_eq!(c.program_counter, PROG - PROG); // sigue en 0
 
     // Pendiente pero no habilitada en IE: no se atiende
     let mut c = cpu();
     c.ime = true;
-    c.raw_memory.write_byte(0xFF0F, 0x01);
-    c.raw_memory.write_byte(0xFFFF, 0x00);
+    c.memory.write_byte(0xFF0F, 0x01);
+    c.memory.write_byte(0xFFFF, 0x00);
     assert_eq!(c.handle_interrupts(), 0);
     assert!(c.ime, "IME sigue activo si no se atiende nada");
 }
@@ -1612,8 +1612,8 @@ fn una_interrupcion_pendiente_despierta_del_halt()
     let mut c = cpu();
     c.halted = true;
     c.ime = false;
-    c.raw_memory.write_byte(0xFF0F, 0x04);
-    c.raw_memory.write_byte(0xFFFF, 0x04);
+    c.memory.write_byte(0xFF0F, 0x04);
+    c.memory.write_byte(0xFFFF, 0x04);
     c.handle_interrupts();
     assert!(!c.halted, "una interrupcion pendiente despierta la CPU aunque IME=0");
 }
@@ -1624,10 +1624,10 @@ fn la_prioridad_es_del_bit_mas_bajo()
     let mut c = cpu();
     c.ime = true;
     c.program_counter = 0xC600;
-    c.raw_memory.write_byte(0xFF0F, 0b0001_0101); // V-Blank, Timer y Joypad a la vez
-    c.raw_memory.write_byte(0xFFFF, 0xFF);
+    c.memory.write_byte(0xFF0F, 0b0001_0101); // V-Blank, Timer y Joypad a la vez
+    c.memory.write_byte(0xFFFF, 0xFF);
 
     c.handle_interrupts();
     assert_eq!(c.program_counter, 0x40, "V-Blank tiene la prioridad mas alta");
-    assert_eq!(c.raw_memory.read_byte(0xFF0F), 0b0001_0100, "solo se limpia el bit atendido");
+    assert_eq!(c.memory.read_byte(0xFF0F), 0b0001_0100, "solo se limpia el bit atendido");
 }

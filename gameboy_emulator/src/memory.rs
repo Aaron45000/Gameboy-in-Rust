@@ -1,6 +1,6 @@
 use crate::cartrige;
 
-pub struct RawMemory 
+pub struct Memory 
 {
     pub address_bus: [u8; 0x10000],
     pub div_reset: bool,
@@ -8,11 +8,11 @@ pub struct RawMemory
     pub cartrige: Box<dyn cartrige::Mbc> // es una caja con una implementacion de Mbc
 }
 
-impl RawMemory
+impl Memory
 {
     pub fn new(romdata: Vec<u8>) -> Self
     {
-        return RawMemory
+        return Memory
         {
             address_bus: [0; 0x10000],
             div_reset: false,

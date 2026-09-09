@@ -1,4 +1,4 @@
-use crate::memory::RawMemory;
+use crate::memory::Memory;
 
 pub struct Timer {
     pub internal_counter: u16,
@@ -13,7 +13,7 @@ impl Timer {
         }
     }
 
-    pub fn step(&mut self, m_cycles: u8, memory: &mut RawMemory) {
+    pub fn step(&mut self, m_cycles: u8, memory: &mut Memory) {
         
         let t_cycles = (m_cycles as u16) * 4;
 

@@ -10,7 +10,7 @@ impl Cpu
         if bits_210 == 0b110
         {
 
-            let hl = self.raw_memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
+            let hl = self.memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
             let a = self.work_registers[A as usize];
 
             let halfcarry_flag = (a & 0xF) + (hl & 0xF) > 0xF;
@@ -48,7 +48,7 @@ impl Cpu
 
         let (operand, cycles) = if bits_210 == 0b110
         {
-            (self.raw_memory.read_byte((self.get_r16(HL as u8) as usize) as u16), 2)
+            (self.memory.read_byte((self.get_r16(HL as u8) as usize) as u16), 2)
         }
         else
         {
@@ -80,7 +80,7 @@ impl Cpu
         if bits_210 == 0b110
         {
 
-            let hl = self.raw_memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
+            let hl = self.memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
             let a = self.work_registers[A as usize];
 
             let halfcarry_flag = (a & 0xF) < (hl & 0xF);
@@ -118,7 +118,7 @@ impl Cpu
 
         let (operand, cycles) = if bits_210 == 0b110
         {
-            (self.raw_memory.read_byte((self.get_r16(HL as u8) as usize) as u16), 2)
+            (self.memory.read_byte((self.get_r16(HL as u8) as usize) as u16), 2)
         }
         else
         {
@@ -148,7 +148,7 @@ impl Cpu
         if bits_210 == 0b110
         {
 
-            let hl = self.raw_memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
+            let hl = self.memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
             let a = self.work_registers[A as usize];
 
             self.work_registers[A as usize] = a & hl;
@@ -181,7 +181,7 @@ impl Cpu
         if bits_210 == 0b110
         {
 
-            let hl = self.raw_memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
+            let hl = self.memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
             let a = self.work_registers[A as usize];
 
             self.work_registers[A as usize] = a ^ hl;
@@ -214,7 +214,7 @@ impl Cpu
         if bits_210 == 0b110
         {
 
-            let hl = self.raw_memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
+            let hl = self.memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
             let a = self.work_registers[A as usize];
 
             self.work_registers[A as usize] = a | hl;
@@ -246,7 +246,7 @@ impl Cpu
         if bits_210 == 0b110
         {
 
-            let hl = self.raw_memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
+            let hl = self.memory.read_byte((self.get_r16(HL as u8) as usize) as u16);
             let a = self.work_registers[A as usize];
 
             let halfcarry_flag = (a & 0xF) < (hl & 0xF);
@@ -281,7 +281,7 @@ impl Cpu
 
     pub(super) fn alu_a_imm8(&mut self, bits_543: u8) -> u8
     {
-        let imm8 = self.raw_memory.read_byte((self.program_counter + 1) as u16);
+        let imm8 = self.memory.read_byte((self.program_counter + 1) as u16);
         let a    = self.work_registers[A as usize];
 
         match bits_543

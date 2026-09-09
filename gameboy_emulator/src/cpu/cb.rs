@@ -6,9 +6,9 @@ impl Cpu
     pub(super) fn cb_rotates_shifts(&mut self, bits_543: u8, bits_210: u8) -> u8 {
         if bits_210 == 0b110 {
             let addr = self.get_r16(R16::HL as u8) as usize;
-            let val = self.raw_memory.read_byte((addr) as u16);
+            let val = self.memory.read_byte((addr) as u16);
             let new_val = self.perform_cb_rot_shift(bits_543, val);
-            self.raw_memory.write_byte((addr) as u16, new_val);
+            self.memory.write_byte((addr) as u16, new_val);
             self.program_counter = self.program_counter.wrapping_add(2);
             return 4;
         }
@@ -69,7 +69,7 @@ impl Cpu
     pub(super) fn cb_bit(&mut self, bits_543: u8, bits_210: u8) -> u8 {
         let val = if bits_210 == 0b110 {
             let addr = self.get_r16(R16::HL as u8) as usize;
-            self.raw_memory.read_byte((addr) as u16)
+            self.memory.read_byte((addr) as u16)
         } else {
             self.work_registers[bits_210 as usize]
         };
@@ -85,9 +85,9 @@ impl Cpu
     pub(super) fn cb_res(&mut self, bits_543: u8, bits_210: u8) -> u8 {
         if bits_210 == 0b110 {
             let addr = self.get_r16(R16::HL as u8) as usize;
-            let mut val = self.raw_memory.read_byte((addr) as u16);
+            let mut val = self.memory.read_byte((addr) as u16);
             val &= !(1 << bits_543);
-            self.raw_memory.write_byte((addr) as u16, val);
+            self.memory.write_byte((addr) as u16, val);
             self.program_counter = self.program_counter.wrapping_add(2);
             return 4;
         }
@@ -102,9 +102,9 @@ impl Cpu
     pub(super) fn cb_set(&mut self, bits_543: u8, bits_210: u8) -> u8 {
         if bits_210 == 0b110 {
             let addr = self.get_r16(R16::HL as u8) as usize;
-            let mut val = self.raw_memory.read_byte((addr) as u16);
+            let mut val = self.memory.read_byte((addr) as u16);
             val |= 1 << bits_543;
-            self.raw_memory.write_byte((addr) as u16, val);
+            self.memory.write_byte((addr) as u16, val);
             self.program_counter = self.program_counter.wrapping_add(2);
             return 4;
         }

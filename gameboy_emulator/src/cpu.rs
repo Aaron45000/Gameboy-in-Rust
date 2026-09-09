@@ -26,7 +26,7 @@ pub struct Cpu
     pub halted: bool,
     pub halt_bug: bool,
     pub work_registers: [u8; 8],
-    pub raw_memory: memory::RawMemory,
+    pub memory: memory::Memory,
 }
 
 impl Cpu
@@ -41,7 +41,7 @@ impl Cpu
             halted: false,
             halt_bug: false,
             work_registers: [0; 8],
-            raw_memory: memory::RawMemory::new(romdata),
+            memory: memory::Memory::new(romdata),
         };
     }
 
@@ -73,8 +73,8 @@ impl Cpu
 
     pub fn handle_interrupts(&mut self) -> u8
     {
-        let requested = self.raw_memory.read_byte((0xFF0F) as u16);
-        let enabled = self.raw_memory.read_byte((0xFFFF) as u16);
+        let requested = self.memory.read_byte((0xFF0F) as u16);
+        let enabled = self.memory.read_byte((0xFFFF) as u16);
         let pending = requested & enabled;
 
         if pending != 0
@@ -92,15 +92,15 @@ impl Cpu
             if pending & (1 << i) != 0
             {
                 self.ime = false;
-                self.raw_memory.write_byte((0xFF0F) as u16, self.raw_memory.read_byte((0xFF0F) as u16) & !(1 << i));
+                self.memory.write_byte((0xFF0F) as u16, self.memory.read_byte((0xFF0F) as u16) & !(1 << i));
 
                 let hi = (self.program_counter >> 8) as u8;
                 let lo = (self.program_counter & 0xFF) as u8; 
  
                 self.stack_pointer = self.stack_pointer.wrapping_sub(1);
-                self.raw_memory.write_byte((self.stack_pointer as usize) as u16, hi);
+                self.memory.write_byte((self.stack_pointer as usize) as u16, hi);
                 self.stack_pointer = self.stack_pointer.wrapping_sub(1);
-                self.raw_memory.write_byte((self.stack_pointer as usize) as u16, lo);
+                self.memory.write_byte((self.stack_pointer as usize) as u16, lo);
 
                 self.program_counter = match i
                 {
@@ -125,12 +125,12 @@ impl Cpu
             self.halt_bug = false;
         }
 
-        let opcode   = self.raw_memory.read_byte((self.program_counter) as u16);
-        let bits_76  = (self.raw_memory.read_byte((self.program_counter) as u16) & 0xC0) >> 6; // 76
-        let bits_3210 = self.raw_memory.read_byte((self.program_counter) as u16) & 0b1111;     // 3210
-        let bits_54  = (self.raw_memory.read_byte((self.program_counter) as u16) & 0b110000) >> 4; // 54
-        let bits_543 = (self.raw_memory.read_byte((self.program_counter) as u16) & 0b111000) >> 3; // 543
-        let bits_210 = self.raw_memory.read_byte((self.program_counter) as u16) & 0b111;          // 210
+        let opcode   = self.memory.read_byte((self.program_counter) as u16);
+        let bits_76  = (self.memory.read_byte((self.program_counter) as u16) & 0xC0) >> 6; // 76
+        let bits_3210 = self.memory.read_byte((self.program_counter) as u16) & 0b1111;     // 3210
+        let bits_54  = (self.memory.read_byte((self.program_counter) as u16) & 0b110000) >> 4; // 54
+        let bits_543 = (self.memory.read_byte((self.program_counter) as u16) & 0b111000) >> 3; // 543
+        let bits_210 = self.memory.read_byte((self.program_counter) as u16) & 0b111;          // 210
 
         if opcode != 0xCB
         {
@@ -497,7 +497,7 @@ impl Cpu
         }
         else
         {
-            let cb_opcode = self.raw_memory.read_byte((self.program_counter + 1) as u16);
+            let cb_opcode = self.memory.read_byte((self.program_counter + 1) as u16);
             let cb_bits_76 = (cb_opcode & 0xC0) >> 6;
             let cb_bits_543 = (cb_opcode & 0b111000) >> 3;
             let cb_bits_210 = cb_opcode & 0b111;

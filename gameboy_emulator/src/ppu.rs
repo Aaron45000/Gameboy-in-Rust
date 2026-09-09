@@ -1,4 +1,4 @@
-use crate::memory::RawMemory;
+use crate::memory::Memory;
 
 enum PpuMode { HBlank = 0, VBlank = 1, OAMSearch = 2, PixelTransfer = 3 }
 
@@ -16,28 +16,28 @@ impl Ppu {
     }
 
 
-    fn render_background(&mut self, ly: u8, memory: &RawMemory) 
+    fn render_background(&mut self, ly: u8, memory: &Memory) 
     {
         
 
 
     }
     
-    fn render_window(&mut self, ly: u8, memory: &RawMemory) 
+    fn render_window(&mut self, ly: u8, memory: &Memory) 
     {
         
 
 
     }
 
-    fn render_sprites(&mut self, ly: u8, memory: &RawMemory) 
+    fn render_sprites(&mut self, ly: u8, memory: &Memory) 
     {
 
 
 
     }
 
-    pub fn step(&mut self, m_cycles: u16, memory: &mut RawMemory) 
+    pub fn step(&mut self, m_cycles: u16, memory: &mut Memory) 
     {
         self.ticks += m_cycles as u32;
 

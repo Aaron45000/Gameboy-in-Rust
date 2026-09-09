@@ -84,7 +84,7 @@ impl Emulator
         let joypad_register: u8;
         
         // Leemos el estado anterior para detectar si algún botón acaba de ser presionado
-        let old_state = self.cpu.raw_memory.read_byte(0xFF00);
+        let old_state = self.cpu.memory.read_byte(0xFF00);
         
         let p14 = (old_state >> 4) & 1; // Bit 4: 0 = Selecciona Direcciones
         let p15 = (old_state >> 5) & 1; // Bit 5: 0 = Selecciona Botones de acción
@@ -125,14 +125,14 @@ impl Emulator
         let new_state = (old_state & 0xF0) | joypad_register;
         
         // Escribimos el nuevo estado usando la función segura
-        self.cpu.raw_memory.write_byte(0xFF00, new_state);
+        self.cpu.memory.write_byte(0xFF00, new_state);
 
         // Si algún botón pasó de 1 a 0 (de soltado a presionado), disparamos la interrupción
         if (old_state & !new_state & 0x0F) != 0 
         {
-            let current_if = self.cpu.raw_memory.read_byte(0xFF0F);
+            let current_if = self.cpu.memory.read_byte(0xFF0F);
             // Encender bit 4 del registro IF (Interrupción de Joypad)
-            self.cpu.raw_memory.write_byte(0xFF0F, current_if | 0b0001_0000); 
+            self.cpu.memory.write_byte(0xFF0F, current_if | 0b0001_0000); 
         }
     }
 }
@@ -280,7 +280,7 @@ fn main()
 
     // El tipo de MBC y el numero de bancos los deduce la fabrica del cartucho
     let mut emulator = Emulator::new(romdata);
-    emulator.cpu.raw_memory.address_bus[0xFF00] |= 0b11001111;
+    emulator.cpu.memory.address_bus[0xFF00] |= 0b11001111;
 
     let event_loop = EventLoop::new().unwrap();
     let context = Context::new(event_loop.owned_display_handle()).unwrap();

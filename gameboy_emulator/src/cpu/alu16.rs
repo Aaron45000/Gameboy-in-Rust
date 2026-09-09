@@ -16,18 +16,18 @@ impl Cpu
         let hi = (val >> 8) as u8;
         let lo = (val & 0xFF) as u8;
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
-        self.raw_memory.write_byte((self.stack_pointer as usize) as u16, hi);
+        self.memory.write_byte((self.stack_pointer as usize) as u16, hi);
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
-        self.raw_memory.write_byte((self.stack_pointer as usize) as u16, lo);
+        self.memory.write_byte((self.stack_pointer as usize) as u16, lo);
         self.program_counter = self.program_counter.wrapping_add(1);
         return 4;
     }
 
     pub(super) fn pop_r16(&mut self, bits_54: u8) -> u8
     {
-        let lo = self.raw_memory.read_byte((self.stack_pointer as usize) as u16) as u16;
+        let lo = self.memory.read_byte((self.stack_pointer as usize) as u16) as u16;
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
-        let hi = self.raw_memory.read_byte((self.stack_pointer as usize) as u16) as u16;
+        let hi = self.memory.read_byte((self.stack_pointer as usize) as u16) as u16;
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
         let val = (hi << 8) | lo;
         if bits_54 == 0b11
@@ -46,7 +46,7 @@ impl Cpu
 
     pub(super) fn add_sp_imm8(&mut self) -> u8 // ADD SP, imm8
     {
-        let imm  = self.raw_memory.read_byte((self.program_counter + 1) as u16) as i8;
+        let imm  = self.memory.read_byte((self.program_counter + 1) as u16) as i8;
         let sp   = self.stack_pointer;
         let immu = imm as u16;
         // H y C se calculan sobre el byte bajo de SP
@@ -61,7 +61,7 @@ impl Cpu
 
     pub(super) fn ld_hl_sp_imm8(&mut self) -> u8 // LD HL, SP+imm8
     {
-        let imm  = self.raw_memory.read_byte((self.program_counter + 1) as u16) as i8;
+        let imm  = self.memory.read_byte((self.program_counter + 1) as u16) as i8;
         let sp   = self.stack_pointer;
         let immu = imm as u16;
         let halfcarry_flag = (sp & 0xF).wrapping_add(immu & 0xF) > 0xF;
@@ -97,7 +97,8 @@ impl Cpu
         }
 
         let halfcarry_flag = (hl & 0x0FFF) + (rr & 0x0FFF) > 0x0FFF;
-        let carry_flag     = (hl as u32) + (rr as u32) > 0xFFFF;
+        
+        let carry_flag= (hl as u32) + (rr as u32) > 0xFFFF;
 
         self.set_r16(R16::HL as u8, hl.wrapping_add(rr));
 
@@ -144,13 +145,13 @@ impl Cpu
     {
         if bits_543 == 0b110 // inc [HL]: acceso a memoria en lugar de registro
         {
-            let addr          = self.get_r16(R16::HL as u8) as usize;
-            let old           = self.raw_memory.read_byte((addr) as u16);
-            let result        = old.wrapping_add(1);
-            self.raw_memory.write_byte((addr) as u16, result);
+            let addr = self.get_r16(R16::HL as u8) as usize;
+            let old = self.memory.read_byte((addr) as u16);
+            let result = old.wrapping_add(1);
+            self.memory.write_byte((addr) as u16, result);
 
             let halfcarry_flag = (old & 0xF) == 0xF;
-            let zero_flag      = result == 0;
+            let zero_flag = result == 0;
 
             self.set_flags(zero_flag, false, halfcarry_flag, false);
             self.clear_flags(!zero_flag, true, !halfcarry_flag, false);
@@ -178,10 +179,10 @@ impl Cpu
     {
         if bits_543 == 0b110 // dec [HL]: acceso a memoria en lugar de registro
         {
-            let addr          = self.get_r16(R16::HL as u8) as usize;
-            let old           = self.raw_memory.read_byte((addr) as u16);
-            let result        = old.wrapping_sub(1);
-            self.raw_memory.write_byte((addr) as u16, result);
+            let addr= self.get_r16(R16::HL as u8) as usize;
+            let old = self.memory.read_byte((addr) as u16);
+            let result= old.wrapping_sub(1);
+            self.memory.write_byte((addr) as u16, result);
 
             let halfcarry_flag = (old & 0xF) == 0; // borrow del nibble bajo
             let zero_flag      = result == 0;

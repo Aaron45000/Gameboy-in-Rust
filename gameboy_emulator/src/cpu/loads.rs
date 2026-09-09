@@ -6,18 +6,18 @@ impl Cpu
 {
     pub(super) fn ld_highpage_n_a(&mut self) -> u8 // LD [FF00+n], A
     {
-        let n    = self.raw_memory.read_byte((self.program_counter + 1) as u16) as usize;
+        let n    = self.memory.read_byte((self.program_counter + 1) as u16) as usize;
         let addr = 0xFF00 | n;
-        self.raw_memory.write_byte((addr) as u16, self.work_registers[A as usize]);
+        self.memory.write_byte((addr) as u16, self.work_registers[A as usize]);
         self.program_counter = self.program_counter.wrapping_add(2);
         return 3;
     }
 
     pub(super) fn ld_a_highpage_n(&mut self) -> u8 // LD A, [FF00+n]
     {
-        let n    = self.raw_memory.read_byte((self.program_counter + 1) as u16) as usize;
+        let n    = self.memory.read_byte((self.program_counter + 1) as u16) as usize;
         let addr = 0xFF00 | n;
-        self.work_registers[A as usize] = self.raw_memory.read_byte((addr) as u16);
+        self.work_registers[A as usize] = self.memory.read_byte((addr) as u16);
         self.program_counter = self.program_counter.wrapping_add(2);
         return 3;
     }
@@ -26,7 +26,7 @@ impl Cpu
     {
         let c    = self.work_registers[R8::C as usize] as usize;
         let addr = 0xFF00 | c;
-        self.raw_memory.write_byte((addr) as u16, self.work_registers[A as usize]);
+        self.memory.write_byte((addr) as u16, self.work_registers[A as usize]);
         self.program_counter = self.program_counter.wrapping_add(1);
         return 2;
     }
@@ -35,27 +35,27 @@ impl Cpu
     {
         let c    = self.work_registers[R8::C as usize] as usize;
         let addr = 0xFF00 | c;
-        self.work_registers[A as usize] = self.raw_memory.read_byte((addr) as u16);
+        self.work_registers[A as usize] = self.memory.read_byte((addr) as u16);
         self.program_counter = self.program_counter.wrapping_add(1);
         return 2;
     }
 
     pub(super) fn ld_imm16_a(&mut self) -> u8 // LD [imm16], A
     {
-        let lo   = self.raw_memory.read_byte((self.program_counter + 1) as u16) as usize;
-        let hi   = self.raw_memory.read_byte((self.program_counter + 2) as u16) as usize;
+        let lo   = self.memory.read_byte((self.program_counter + 1) as u16) as usize;
+        let hi   = self.memory.read_byte((self.program_counter + 2) as u16) as usize;
         let addr = (hi << 8) | lo;
-        self.raw_memory.write_byte((addr) as u16, self.work_registers[A as usize]);
+        self.memory.write_byte((addr) as u16, self.work_registers[A as usize]);
         self.program_counter = self.program_counter.wrapping_add(3);
         return 4;
     }
 
     pub(super) fn ld_a_imm16(&mut self) -> u8 // LD A, [imm16]
     {
-        let lo   = self.raw_memory.read_byte((self.program_counter + 1) as u16) as usize;
-        let hi   = self.raw_memory.read_byte((self.program_counter + 2) as u16) as usize;
+        let lo   = self.memory.read_byte((self.program_counter + 1) as u16) as usize;
+        let hi   = self.memory.read_byte((self.program_counter + 2) as u16) as usize;
         let addr = (hi << 8) | lo;
-        self.work_registers[A as usize] = self.raw_memory.read_byte((addr) as u16);
+        self.work_registers[A as usize] = self.memory.read_byte((addr) as u16);
         self.program_counter = self.program_counter.wrapping_add(3);
         return 4;
     }
@@ -83,7 +83,7 @@ impl Cpu
             _ => { println!("todo mal"); return 158; }
         };
 
-        self.work_registers[R8::A as usize] = self.raw_memory.read_byte((addr as usize) as u16);
+        self.work_registers[R8::A as usize] = self.memory.read_byte((addr as usize) as u16);
         self.program_counter = self.program_counter.wrapping_add(1);
         return 2;
     }
@@ -111,15 +111,15 @@ impl Cpu
             _ => { println!("todo mal"); return 158; }
         };
 
-        self.raw_memory.write_byte((addr as usize) as u16, a);
+        self.memory.write_byte((addr as usize) as u16, a);
         self.program_counter = self.program_counter.wrapping_add(1);
         return 2;
     }
 
     pub(super) fn ld_r16_imm16(&mut self, bits_54: u8) -> u8
     {
-        let lo  = self.raw_memory.read_byte((self.program_counter + 1) as u16) as u16;
-        let hi  = self.raw_memory.read_byte((self.program_counter + 2) as u16) as u16;
+        let lo  = self.memory.read_byte((self.program_counter + 1) as u16) as u16;
+        let hi  = self.memory.read_byte((self.program_counter + 2) as u16) as u16;
         let val = (hi << 8) | lo;
 
         if bits_54 == R16::SP as u8
@@ -138,12 +138,12 @@ impl Cpu
     pub(super) fn ld_imm16_sp(&mut self) -> u8
     {
         // guarda sp en las direcciones imm16 y imm16 + 1
-        let lo   = self.raw_memory.read_byte((self.program_counter + 1) as u16) as u16;
-        let hi   = self.raw_memory.read_byte((self.program_counter + 2) as u16) as u16;
+        let lo   = self.memory.read_byte((self.program_counter + 1) as u16) as u16;
+        let hi   = self.memory.read_byte((self.program_counter + 2) as u16) as u16;
         let addr = (hi << 8) | lo;
 
-        self.raw_memory.write_byte((addr as usize) as u16, (self.stack_pointer & 0xFF) as u8);
-        self.raw_memory.write_byte((addr as usize + 1) as u16, (self.stack_pointer >> 8) as u8);
+        self.memory.write_byte((addr as usize) as u16, (self.stack_pointer & 0xFF) as u8);
+        self.memory.write_byte((addr as usize + 1) as u16, (self.stack_pointer >> 8) as u8);
 
         self.program_counter = self.program_counter.wrapping_add(3);
         return 5;
@@ -152,13 +152,13 @@ impl Cpu
     pub(super) fn ld_r8_imm8(&mut self, bits_543: u8) -> u8
     {
 
-        let imm8 = self.raw_memory.read_byte((self.program_counter + 1) as u16);
+        let imm8 = self.memory.read_byte((self.program_counter + 1) as u16);
 
         if bits_543 == 0b110
         {
 
             let address = self.get_r16(R16::HL as u8) as usize;
-            self.raw_memory.write_byte((address) as u16, imm8);
+            self.memory.write_byte((address) as u16, imm8);
             self.program_counter = self.program_counter.wrapping_add(2);
             return 3;
 
@@ -177,7 +177,7 @@ impl Cpu
 
             let addr = self.get_r16(HL as u8);
 
-            self.raw_memory.write_byte((addr as usize) as u16, self.work_registers[bits_210 as usize]);
+            self.memory.write_byte((addr as usize) as u16, self.work_registers[bits_210 as usize]);
             self.program_counter = self.program_counter.wrapping_add(1);
             return 2; 
         
@@ -187,7 +187,7 @@ impl Cpu
 
             let addr = self.get_r16(HL as u8);
 
-            self.work_registers[bits_543 as usize] = self.raw_memory.read_byte((addr as usize) as u16);
+            self.work_registers[bits_543 as usize] = self.memory.read_byte((addr as usize) as u16);
             self.program_counter = self.program_counter.wrapping_add(1);
             return 2; 
         
