@@ -1,4 +1,4 @@
-# Simple Emulators in Rust
+# Gameboy in Rust
 
 Un emulador de **Game Boy** (DMG) escrito en Rust desde cero, con fines educativos.
 
