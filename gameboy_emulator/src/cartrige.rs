@@ -13,7 +13,7 @@ pub trait Mbc
     fn write_ram(&mut self, address: u16, value: u8);
     fn step(&mut self, m_cycles: u16);
     fn save_ram(&self) -> Vec<u8>; 
-    fn load_ram(&mut self, save: &[u8]);
+    fn load_ram(&mut self, save: Vec<u8>);
 
 }
 

@@ -39,6 +39,10 @@ fn cpu() -> Cpu
     let mut c = Cpu::new(rom);
     c.memory.ppu_mode = 0; // que VRAM y OAM sean accesibles
     c.stack_pointer = STACK;
+    // Estado limpio y determinista: los tests parten de registros en 0,
+    // no del estado post-boot.
+    c.work_registers = [0; 8];
+    c.program_counter = 0;
     return c;
 }
 

@@ -1,10 +1,11 @@
 use std::fs;
+use std::fs::File;
 use std::thread;
 use std::time::{Duration, Instant};
 use std::hint::spin_loop;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
+use sdl2::pixels::{Color, PixelFormatEnum};
 
 mod memory;
 mod timer;
@@ -16,6 +17,14 @@ const SCREEN_WIDTH: u32 = 160;
 const SCREEN_HEIGHT: u32 = 144;
 const FRAME_DURATION: Duration = Duration::from_nanos(16_742_706);
 const TICK_PER_FRAME: u32 = 17556;
+
+// Paleta de grises: color-id 0..3 -> (R, G, B)
+const SHADES: [(u8, u8, u8); 4] = [
+    (255, 255, 255),
+    (192, 192, 192),
+    (96, 96, 96),
+    (0, 0, 0),
+];
 
 // ---------------------------------------------------------------------------
 // Joypad
@@ -139,11 +148,20 @@ impl Emulator
 fn main()
 {
 
-    let path: &str = "path";
+    let path: &str = "path"; //placeholder
     let romdata = fs::read(path)
         .expect("No se pudo abrir el archivo");
     let mut emulator = Emulator::new(romdata);
 
+    let save = fs::read("save.sav");
+
+    if !save.is_err()
+    {
+
+        // Si save existe entonces lo carga a la ram del cartucho
+        emulator.cpu.memory.cartrige.load_ram(save.unwrap());
+
+    }
 
     // Inicializa el contexto principal de la biblioteca SDL2
     
@@ -161,6 +179,12 @@ fn main()
 
     // Convierte la ventana en un Canvas
     let mut canvas = window.into_canvas().build().unwrap();
+
+    // Textura donde se volcara el framebuffer de la PPU
+    let texture_creator = canvas.texture_creator();
+    let mut texture = texture_creator
+        .create_texture_streaming(PixelFormatEnum::RGB24, SCREEN_WIDTH, SCREEN_HEIGHT)
+        .unwrap();
 
     // Establece el color primario con el que dibujar
     canvas.set_draw_color(Color::RGB(0, 255, 255));
@@ -193,6 +217,9 @@ fn main()
                 // Evento de cierre de la ventana (clic en la X)
                 Event::Quit { .. } => 
                 {
+
+                    let save = emulator.cpu.memory.cartrige.save_ram();
+                    fs::write("save.sav", &save).unwrap();
                     break 'running;
                 }
 
@@ -243,8 +270,6 @@ fn main()
 
         // --- Aquí iría la lógica adicional de tu juego/aplicación ---
 
-        let ant_joypad_register = emulator.cpu.memory.address_bus[0xFF00];
-
         emulator.read_joypad();
 
         let mut ticks_frame = TICK_PER_FRAME;
@@ -273,7 +298,7 @@ fn main()
 
             emulator.ppu.step(used_ticks as u16, &mut emulator.cpu.memory);
             emulator.timer.step(used_ticks as u8, &mut emulator.cpu.memory);
-            
+            emulator.cpu.memory.cartrige.step(used_ticks as u16);
             // emulator.apu.step(ticks_gastados);
                         
             emulator.read_joypad();
@@ -281,6 +306,26 @@ fn main()
         
         }
 
+        // La PPU devuelve color-ids (0..3); aqui se mapean a la paleta de
+        // grises y se empaquetan en RGB24 (3 bytes por pixel) para la textura.
+        let mut rgb = [0u8; (SCREEN_WIDTH * SCREEN_HEIGHT * 3) as usize];
+        {
+            let pixels = emulator.ppu.get_pixels();
+            for (i, &color_id) in pixels.iter().enumerate()
+            {
+                let (r, g, b) = SHADES[color_id as usize];
+                rgb[i * 3] = r;
+                rgb[i * 3 + 1] = g;
+                rgb[i * 3 + 2] = b;
+            }
+        }
+
+        // `copy` estira la textura de 160x144 al canvas completo y `present`
+        // la muestra en pantalla.
+        texture
+            .update(None, &rgb, (SCREEN_WIDTH * 3) as usize)
+            .unwrap();
+        canvas.copy(&texture, None, None).unwrap();
         canvas.present();
 
         
@@ -304,64 +349,3 @@ fn main()
     }
 
 }
-
-
-/*
-Event::AboutToWait =>
-            {
-                let now = std::time::Instant::now();
-
-                if now >= next_frame
-                {
-                    
-                    let ant_joypad_register = emulator.cpu.raw_memory.address_bus[0xFF00];
-
-                    emulator.read_joypad();
-
-                    if ant_joypad_register != emulator.cpu.raw_memory.address_bus[0xFF00]
-                    {
-                        
-                        println!("joypad_register: {:08b}", emulator.cpu.raw_memory.address_bus[0xFF00]);
-                        
-                    }
-
-                    let mut ticks_frame = 17556 as u16;
-                    
-                    while ticks_frame > 0
-                    {
-                        
-                        let mut ticks_gastados = emulator.cpu.handle_interrupts() as u16; 
-
-                        if ticks_gastados == 0
-                        {
-                            if !emulator.cpu.halted
-                            {
-
-                                ticks_gastados = emulator.cpu.step() as u16;
-                            
-                            }
-                            
-                        }
-
-                        emulator.ppu.step(ticks_gastados, &mut emulator.cpu.raw_memory);
-                        emulator.timer.step(ticks_gastados as u8, &mut emulator.cpu.raw_memory);
-                        // emulator.apu.step(ticks_gastados);
-                        
-                        emulator.read_joypad();
-                        ticks_frame -= ticks_gastados as u16;
-
-                    }
-                     
-
-                    // Aqui ira la logica de CPU: emulator.cpu.step(), emulator.ppu.step(), etc.
-
-
-                    
-
-                    window.request_redraw();
-
-                    next_frame = now + frame_duration;
-                    event_loop_target.set_control_flow(ControlFlow::WaitUntil(next_frame));
-                }
-            }
-*/

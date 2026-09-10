@@ -33,16 +33,20 @@ impl Cpu
 {
     pub fn new(romdata: Vec<u8>) -> Self
     {
-        return Cpu
+        let mut cpu = Cpu
         {
-            program_counter: 0,
-            stack_pointer: 0,
+            program_counter: 0x100,
+            stack_pointer: 0xFFFE,
             ime: false,
             halted: false,
             halt_bug: false,
             work_registers: [0; 8],
             memory: memory::Memory::new(romdata),
         };
+
+        cpu.set_default_memory();
+        
+        return cpu;
     }
 
     fn get_r16(&self, r16_idx: u8) -> u16
@@ -569,5 +573,67 @@ impl Cpu
         { 
             *f &= !0b00010000; 
         }
+    }
+        
+    fn set_default_memory(&mut self)
+    {
+
+        self.work_registers[R8::B as usize] = 0x00;
+        self.work_registers[R8::C as usize] = 0x13;
+        self.work_registers[R8::D as usize] = 0x00;
+        self.work_registers[R8::E as usize] = 0xD8;
+        self.work_registers[R8::H as usize] = 0x01;
+        self.work_registers[R8::L as usize] = 0x4D;
+        self.work_registers[R8::F as usize] = 0xB0;
+        self.work_registers[R8::A as usize] = 0x01;
+
+        // Display
+        self.memory.address_bus[0xFF40] = 0x91; // LCDC
+        self.memory.address_bus[0xFF41] = 0x85; // STAT
+        self.memory.address_bus[0xFF42] = 0x00; // SCY
+        self.memory.address_bus[0xFF43] = 0x00; // SCX
+        self.memory.address_bus[0xFF44] = 0x00; // LY
+        self.memory.address_bus[0xFF45] = 0x00; // LYC
+        self.memory.address_bus[0xFF46] = 0xFF; // DMA
+        self.memory.address_bus[0xFF47] = 0xFC; // BGP
+        self.memory.address_bus[0xFF48] = 0xFF; // OBP0
+        self.memory.address_bus[0xFF49] = 0xFF; // OBP1
+        self.memory.address_bus[0xFF4A] = 0x00; // WY
+        self.memory.address_bus[0xFF4B] = 0x00; // WX
+
+        // Temporizador
+        self.memory.address_bus[0xFF05] = 0x00; // TIMA
+        self.memory.address_bus[0xFF06] = 0x00; // TMA
+        self.memory.address_bus[0xFF07] = 0x00; // TAC
+
+        // Interrupciones
+        self.memory.address_bus[0xFF0F] = 0xE1; // IF
+        self.memory.address_bus[0xFFFF] = 0x00; // IE
+
+        // Joypad y serial
+        self.memory.address_bus[0xFF00] = 0xCF; // P1
+        self.memory.address_bus[0xFF01] = 0x00; // SB
+        self.memory.address_bus[0xFF02] = 0x7E; // SC
+
+        // APU (todavia sin emular, pero con sus valores post-boot)
+        self.memory.address_bus[0xFF10] = 0x80; // NR10
+        self.memory.address_bus[0xFF11] = 0xBF; // NR11
+        self.memory.address_bus[0xFF12] = 0xF3; // NR12
+        self.memory.address_bus[0xFF14] = 0xBF; // NR14
+        self.memory.address_bus[0xFF16] = 0x3F; // NR21
+        self.memory.address_bus[0xFF17] = 0x00; // NR22
+        self.memory.address_bus[0xFF19] = 0xBF; // NR24
+        self.memory.address_bus[0xFF1A] = 0x7F; // NR30
+        self.memory.address_bus[0xFF1B] = 0xFF; // NR31
+        self.memory.address_bus[0xFF1C] = 0x9F; // NR32
+        self.memory.address_bus[0xFF1E] = 0xBF; // NR34
+        self.memory.address_bus[0xFF20] = 0xFF; // NR41
+        self.memory.address_bus[0xFF21] = 0x00; // NR42
+        self.memory.address_bus[0xFF22] = 0x00; // NR43
+        self.memory.address_bus[0xFF23] = 0xBF; // NR44
+        self.memory.address_bus[0xFF24] = 0x77; // NR50
+        self.memory.address_bus[0xFF25] = 0xF3; // NR51
+        self.memory.address_bus[0xFF26] = 0xF1; // NR52
+
     }
 }

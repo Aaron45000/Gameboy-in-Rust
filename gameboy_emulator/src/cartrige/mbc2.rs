@@ -143,10 +143,10 @@ impl Mbc for MBC2
 
     }
 
-    fn load_ram(&mut self, save: &[u8])
+    fn load_ram(&mut self, save: Vec<u8>)
     {
 
-        let mut data = save.to_vec();
+        let mut data = save;
         data.resize(512, 0);
 
         for i in 0..512

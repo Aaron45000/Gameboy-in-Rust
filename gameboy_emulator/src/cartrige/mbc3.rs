@@ -393,10 +393,10 @@ impl Mbc for MBC3
 
     }
 
-    fn load_ram(&mut self, save: &[u8])
+    fn load_ram(&mut self, save: Vec<u8>)
     {
 
-        let mut data = save.to_vec();
+        let mut data = save;
         data.resize(RAM_BANK_SIZE*self.ram_banks, 0);
         
         let res = data.chunks(RAM_BANK_SIZE)

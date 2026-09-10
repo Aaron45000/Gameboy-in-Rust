@@ -84,10 +84,10 @@ impl Mbc for RomOnly
 
     }
 
-    fn load_ram(&mut self, save: &[u8])
+    fn load_ram(&mut self, save: Vec<u8>)
     {
 
-        let mut res  = save.to_vec();
+        let mut res  = save;
         res.resize(RAM_BANK_SIZE, 0);
         self.ram_data = res;
 
