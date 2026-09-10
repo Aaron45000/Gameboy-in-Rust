@@ -114,4 +114,5 @@ impl Ppu {
         memory.address_bus[0xFF41] = stat;
         memory.ppu_mode = current_mode;
     }
+
 }

@@ -12,7 +12,7 @@ pub trait Mbc
     fn read_ram(&self, address: u16) -> u8;
     fn write_ram(&mut self, address: u16, value: u8);
     fn step(&mut self, m_cycles: u16);
-    fn save_ram(&self) -> Vec<u8>; // Vec<u8> estado de la ram antes de apagar
+    fn save_ram(&self) -> Vec<u8>; 
     fn load_ram(&mut self, save: &[u8]);
 
 }
